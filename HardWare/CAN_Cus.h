@@ -27,12 +27,12 @@
 
 
 /* *************** Feature Switch ****************** */
-  #define USE_DEFAULT_RxFIFO_FULL_HOOK            (0)     // 是否使用缓冲区溢出备份机制: 0=不使用(默认), 1=启用,报文溢出后将调用用户回调.
+  #define USE_DEFAULT_RxFIFO_FULL_HOOK            (1)     // 是否使用缓冲区溢出备份机制: 0=不使用(默认), 1=启用,报文溢出后将调用用户回调.
     #if (USE_DEFAULT_RxFIFO_FULL_HOOK)
       #define BACKUP_BUFFER_LIMIT_NUM        (2)
     #endif // USE_DEFAULT_RxFIFO_FULL_HOOK
 
-  #define CAN_CFG_ALLOC_DYNAMIC           (0)     // 配置相关结构体内存分配方式: 0=静态分配(默认), 1=动态分配.
+  #define CAN_CFG_ALLOC_DYNAMIC           (1)     // 配置相关结构体内存分配方式: 0=静态分配(默认), 1=动态分配.
   #define CAN_TCB_ALLOC_DYNAMIC           (0)     // 设备结构体内存分配方式: 0=静态分配(默认), 1=动态分配.
 
   #define USE_SEND_ASYNC                  (1)     // 是否启用异步发送: 0=不启用异步发送(发送为阻塞式). 1=启用异步发送(添加异步发送API).

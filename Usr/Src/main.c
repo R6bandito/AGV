@@ -1,4 +1,9 @@
 #include "main.h"
+#include "stm32f1xx_hal.h"
+#include "sys.h"
+#include "debug_uart.h"
+#include "Cus_ILI9341.h"
+#include "motor_can_ctrl.h"
 
 
 /* ------------------------- 时基分离 ----------------------------- */
@@ -15,16 +20,19 @@ int main( void )
   SystemClock_Config_72Mhz();
 
   debug_uart_Init();
-  
+
   printf("New Project Test OK! \n\n");
 
   /* LCD初始化. */
   Cus_ILI9341_InitHandle(&lcd_device);
   lcd_device.displayInit(&lcd_device, ILI9341_ROTATION_0);
 
+  /* CAN通信初始化. */
+  HX_CAN_Init();
+
   while(1)
   {
-        
+    
   }
 }
 

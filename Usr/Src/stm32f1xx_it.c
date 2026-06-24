@@ -20,6 +20,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "stm32f1xx_hal.h"
 #include "stm32f1xx_it.h"
    
 /** @addtogroup STM32F1xx_HAL_Examples
@@ -125,14 +126,14 @@ void UsageFault_Handler(void)
      * @param  None
      * @retval None
      */
-   void PendSV_Handler(void)
-   {
+  //  void PendSV_Handler(void)
+  //  {
  
-   }
+  //  }
 
    void SysTick_Handler(void)
    {
-     HAL_IncTick();
+    
    }
 
 #endif

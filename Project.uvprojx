@@ -1363,6 +1363,16 @@
               <FileType>5</FileType>
               <FilePath>.\HardWare\Cus_CAN_RTOS.h</FilePath>
             </File>
+            <File>
+              <FileName>motor_can_ctrl.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\HardWare\motor_can_ctrl.c</FilePath>
+            </File>
+            <File>
+              <FileName>motor_can_ctrl.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\HardWare\motor_can_ctrl.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -2918,6 +2928,16 @@
               <FileName>Cus_CAN_RTOS.h</FileName>
               <FileType>5</FileType>
               <FilePath>.\HardWare\Cus_CAN_RTOS.h</FilePath>
+            </File>
+            <File>
+              <FileName>motor_can_ctrl.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\HardWare\motor_can_ctrl.c</FilePath>
+            </File>
+            <File>
+              <FileName>motor_can_ctrl.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\HardWare\motor_can_ctrl.h</FilePath>
             </File>
           </Files>
         </Group>
