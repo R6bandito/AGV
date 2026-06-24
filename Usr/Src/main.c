@@ -14,9 +14,9 @@ int main( void )
 
   SystemClock_Config_72Mhz();
 
-//  debug_uart_Init();
+  debug_uart_Init();
   
-  printf("New Project Test OK! \n\n");
+  // printf("New Project Test OK! \n\n");
 
   /* LCD初始化. */
   Cus_ILI9341_InitHandle(&lcd_device);
