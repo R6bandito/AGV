@@ -1,7 +1,12 @@
-#ifndef _KINEMATICS_H
-#define _KINEMATICS_H
-#include<stdint.h>
-#include<stdbool.h>
+#ifndef __KINEMATICS_H
+#define __KINEMATICS_H
+#include <stdint.h>
+/* ----- ARMCC v5 C99 兼容 bool 定义 ----- */
+#ifndef __cplusplus
+  #define bool  _Bool
+  #define true  1
+  #define false 0
+#endif
 
 /*AGV几何参数 单位：米*/
 #define AGV_WHEELBASE_X   1.2f //前后轮距的一半
@@ -10,7 +15,7 @@
 #define PI 3.14159265358979  //圆周率近似值
 
 #ifndef NULL
-    #define NULL  (void *)0
+  #define NULL  (void *)0
 #endif
 
 //单个舵轮的目标状态

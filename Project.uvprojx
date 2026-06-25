@@ -1366,6 +1366,36 @@
               <FileType>5</FileType>
               <FilePath>.\HardWare\kinematics.h</FilePath>
             </File>
+            <File>
+              <FileName>protocol.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\HardWare\protocol.c</FilePath>
+            </File>
+            <File>
+              <FileName>protocol.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\HardWare\protocol.h</FilePath>
+            </File>
+            <File>
+              <FileName>wheel_manager.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\HardWare\wheel_manager.c</FilePath>
+            </File>
+            <File>
+              <FileName>wheel_manager.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\HardWare\wheel_manager.h</FilePath>
+            </File>
+            <File>
+              <FileName>agv_state.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\HardWare\agv_state.c</FilePath>
+            </File>
+            <File>
+              <FileName>agv_state.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\HardWare\agv_state.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -2925,6 +2955,36 @@
               <FileName>kinematics.h</FileName>
               <FileType>5</FileType>
               <FilePath>.\HardWare\kinematics.h</FilePath>
+            </File>
+            <File>
+              <FileName>protocol.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\HardWare\protocol.c</FilePath>
+            </File>
+            <File>
+              <FileName>protocol.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\HardWare\protocol.h</FilePath>
+            </File>
+            <File>
+              <FileName>wheel_manager.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\HardWare\wheel_manager.c</FilePath>
+            </File>
+            <File>
+              <FileName>wheel_manager.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\HardWare\wheel_manager.h</FilePath>
+            </File>
+            <File>
+              <FileName>agv_state.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\HardWare\agv_state.c</FilePath>
+            </File>
+            <File>
+              <FileName>agv_state.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\HardWare\agv_state.h</FilePath>
             </File>
           </Files>
         </Group>
