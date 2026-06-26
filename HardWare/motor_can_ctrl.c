@@ -45,10 +45,28 @@ __WEAK void Cus_Motor_ErrorHook( uint8_t Node_id, uint8_t Type, MotorError_t Err
 
 uint8_t Cus_Motor_Steer_PosMode_Initial( uint8_t Node_id );
 void Cus_Motor_Steer_Disable( uint8_t Node_id );
-void Cus_Motor_Steer_SetAngle( uint8_t Node_id, float angle_deg, uint32_t speed_rpm );
+void Cus_Motor_Steer_SetAngle( uint8_t Node_id, float angle_deg, uint32_t speed_rpm, uint8_t forceSync );
+uint8_t Cus_Motor_Steer_GetAngle( uint8_t Node_id, float *pAngle );
 void Cus_Motor_Steer_EmergencyStop( uint8_t Node_id );
+uint8_t Cus_Motor_Steer_IsTargetReached( uint8_t Node_id );
+uint8_t Cus_Motor_Steer_IsFault( uint8_t Node_id );
+uint16_t Cus_Motor_Steer_StatusWord( uint8_t Node_id );
+uint8_t Cus_Motor_Steer_IsEnable( uint8_t Node_id );
 /* —————————————————————————————————————————————————————— */
 
+/* —————————————————————————————————————————————————————— */
+                    /* Public API Trac */
+
+uint8_t Cus_Motor_Trac_VelocityMode_Initial( uint8_t Node_id );
+void Cus_Motor_Trac_Disable( uint8_t Node_id );
+void Cus_Motor_Trac_EmergencyStop( uint8_t Node_id );
+void Cus_Motor_Trac_SetVelocity( uint8_t Node_id, int32_t rpm, float current );
+int32_t Cus_Motor_Trac_GetVelocity( uint8_t Node_id );
+int32_t Cus_Motor_Trac_GetDistanceCM( uint8_t Node_id );
+uint16_t Cus_Motor_Trac_StatusWord( uint8_t Node_id );
+uint8_t Cus_Motor_Trac_IsFault( uint8_t Node_id );
+uint8_t Cus_Motor_Trac_IsEnable( uint8_t Node_id );
+/* —————————————————————————————————————————————————————— */
 
 /* —————————————————————————————————————————————————————— */
                     /* Static API */
@@ -281,14 +299,13 @@ static void motor_steerDispatch( uint16_t tpdo_id, uint8_t *RxB, MotorStatus_t *
             break;
         }
 
-        case TPDO3_BASE:
-        {
-
-            break;
-        }
-
         case TPDO4_BASE:
         {
+            /* 获取当前转向电机的实时状态. */
+            int32_t anglePosFeedback = (int32_t)(RxB[4] | (RxB[5] << 8) | (RxB[6] << 16) | (RxB[7] << 24));
+
+            device->actual_AngleUnits = (uint16_t)(anglePosFeedback & 0xFFFF);    // 低16位.角度. 
+            device->actual_AngleDeg = ((float)(device->actual_AngleUnits) / (float)MOTOR_STEER_POS_UNIT_PER_REVOLUTION) * 360.0f;     // 换算成角度.
 
             break;
         }
@@ -300,7 +317,93 @@ static void motor_steerDispatch( uint16_t tpdo_id, uint8_t *RxB, MotorStatus_t *
 
 static void motor_tracDispatch( uint16_t tpdo_id, uint8_t *RxB, MotorStatus_t *device )
 {
+    /* 直行驱动电机 TPDO 处理逻辑. */
+    uint16_t func_code = tpdo_id & 0x780;   
+    uint8_t Node_id = tpdo_id & 0x7F;
 
+    switch (func_code)
+    {
+        case TPDO1_BASE:
+        {
+            /* 控制字. */
+            uint16_t controlWord_1 = (uint16_t)RxB[0];
+            uint16_t controlWord_2 = (uint16_t)RxB[1];
+            uint16_t stateW = ((controlWord_2 << 8) | controlWord_1);
+
+            /* 更新状态. */
+            device->statusWord          = stateW;
+            device->is_Enable           = (stateW >> 2) & 0x01;
+            device->is_TargetReach      = (stateW >> 10) & 0x01;
+            device->is_InternalLimit    = (stateW >> 11) & 0x01;
+
+            uint8_t newFault = (stateW >> 3) & 0x01;
+            if ( !device->is_Fault && newFault )
+            {
+                /* 检测到错误边沿置起. 通知上层并更新状态. */
+                Cus_Motor_ErrorHook(Node_id, MOTOR_TRAC_TYPE, MOTOR_ERR_HW_FAULT); 
+                device->is_Fault = (stateW >> 3) & 0x01;
+            }
+            device->is_Fault = newFault;
+
+            break;
+        }
+
+        case TPDO2_BASE:
+        {
+            /* 电机异常状态报告. */
+            uint16_t errWord_1 = (uint16_t)RxB[0];
+            uint16_t errWord_2 = (uint16_t)RxB[1];
+            uint16_t errWord = ((errWord_2 << 8) | errWord_1);
+
+            uint16_t fatal_err_Mask = MOTOR_FAULT_OVERCURRENT_MASK | MOTOR_FAULT_OVERSPEED_MASK | MOTOR_FAULT_ENCODE_FAIL_MASK | MOTOR_FAULT_POWER_MOD_OVERC_MASK;
+            uint16_t err_Mask = MOTOR_FAULT_DRIVER_OVERHEAT | MOTOR_FAULT_OVERHEAT | MOTOR_FAULT_OVERLOAD | MOTOR_FAULT_HALL_SIGN_ERR;
+
+            device->lastErrorCode = errWord;
+            if ( device->lastErrorCode & fatal_err_Mask )
+            {
+                /* 出现致命错误. 通知上层并紧急停机. */
+                device->is_Fault = 1;
+                Cus_Motor_Trac_EmergencyStop(Node_id);
+                Cus_Motor_ErrorHook(Node_id, MOTOR_TRAC_TYPE, MOTOR_ERR_HW_FAULT);
+            }
+            else if ( device->lastErrorCode & err_Mask )
+            {
+                /* 出现错误但非致命. 通知上层. */
+                device->is_Fault = 1;
+                Cus_Motor_ErrorHook(Node_id, MOTOR_TRAC_TYPE, MOTOR_ERR_HW_FAULT);
+            }
+            else 
+            {
+                /* 正常情况. */
+                device->is_Fault = 0;
+            }
+
+            break;
+        }
+
+        case TPDO3_BASE:
+        {
+            /* 直行电机速度信息报文处理. */
+            int32_t speed_raw = (RxB[0] | (RxB[1] << 8) | (RxB[2] << 16) | (RxB[3] << 24));
+            int16_t current = (RxB[4] | (RxB[5] << 8));
+
+            device->current_Rpm = speed_raw;
+            device->current_Apm = current;
+
+            break;
+        }
+
+        case TPDO4_BASE:
+        {
+            /* 直行电机圈数与里程. */
+            int32_t circulNum = (RxB[0] | (RxB[1] << 8) | (RxB[2] << 16) | (RxB[3] << 24));
+
+            device->total_Revolutions = circulNum;
+            device->actual_DistanceMM = device->total_Revolutions * MOTOR_TRAC_CIRCUMFERENCE;
+        }
+
+        default:    break;
+    }
 }
 
 
@@ -379,6 +482,49 @@ void HX_CAN_Init( void )
 
 
 
+void Cus_Motor_MainFunction( void )
+{
+    CAN_RxHeaderTypeDef rxHeader;
+    uint8_t RxData[8] = { 0 };
+
+    /* 只要缓冲区还有CAN报文就一直取. */
+    while( pDev->Receive_IT(pDev, &rxHeader, RxData, FIFO_IDX_0) == HAL_OK )
+    {
+        /* 解析报文ID. */
+        uint16_t tpdo_id = rxHeader.StdId;
+        uint8_t Node_id = tpdo_id & 0x7F;
+
+        /* 查表. 检查该节点是否在驱动库有注册记录. */
+        int8_t index = motor_findSlotByNodeId(Node_id, MOTOR_STEER_TYPE);
+        uint8_t belong = MOTOR_STEER_TYPE;     // belong=1. 该节点来自转向电机表.
+        if ( index < 0 )
+        {
+            /* 不在转向电机设备表. 查直行电机设备表. */
+            index = motor_findSlotByNodeId(Node_id, MOTOR_TRAC_TYPE);
+            if ( index < 0 )
+            {
+                /* 不在两张表中. 未知设备. 不派发给处理逻辑. 返回. */
+                continue;
+            }
+
+            belong = MOTOR_TRAC_TYPE;   // belong-0. 该节点来自直行电机表.
+        }
+
+        /* 查到设备信息. 对报文进行分发处理. */
+        switch (belong)
+        {
+            case MOTOR_STEER_TYPE: motor_steerDispatch(tpdo_id, RxData, &StatusSteerArr[index]);  break;
+            case MOTOR_TRAC_TYPE:  motor_tracDispatch(tpdo_id, RxData, &StatusTracArr[index]);  break;
+
+            default:    break;
+        }
+    }
+}
+
+
+
+/* ——————————————————— Public API Steer —————————————————————————— */
+
 uint8_t Cus_Motor_Steer_PosMode_Initial( uint8_t Node_id )
 {
     /* 检查该设备是否已在状态表中. */
@@ -427,7 +573,7 @@ uint8_t Cus_Motor_Steer_PosMode_Initial( uint8_t Node_id )
         }  
 
         StatusSteerArr[index].nodeId = Node_id;
-        StatusSteerArr[index].runingMode = STEER_UNKNOWN_MODE;
+        StatusSteerArr[index].runingMode = MOTOR_UNKNOWN_MODE;
         StatusSteerArr[index].statusWord = 0;
         DeviceMask &= ~(1 << index);     // 设置位图占用.
     }
@@ -468,64 +614,30 @@ uint8_t Cus_Motor_Steer_PosMode_Initial( uint8_t Node_id )
     if ( motor_waitStatusWord(Node_id, MOTOR_STEER_TYPE, 0x8437, 5000) < 0 )  goto ERROR;
 
     /* 回零结束. 绝对位置模式初始化完毕. 更新状态返回. */
-    StatusSteerArr[index].runingMode = STEER_POSI_MODE;
-    return 0;
+    StatusSteerArr[index].runingMode = MOTOR_POSI_MODE;
+    return 1;
 
 ERROR:
     /* 状态字等待失败. 释放占用，通知钩子. */
     StatusSteerArr[index].nodeId = 0;
     DeviceMask |= (0x01 << index);      // 槽位归还.
-    StatusSteerArr[index].runingMode = STEER_UNKNOWN_MODE;
+    StatusSteerArr[index].runingMode = MOTOR_UNKNOWN_MODE;
     Cus_Motor_ErrorHook(Node_id, MOTOR_STEER_TYPE, MOTOR_ERR_STATUS_WORD);
 
     return 0xFF;
 }
 
 
-void Cus_Motor_MainFunction( void )
-{
-    CAN_RxHeaderTypeDef rxHeader;
-    uint8_t RxData[8] = { 0 };
-
-    /* 只要缓冲区还有CAN报文就一直取. */
-    while( pDev->Receive_IT(pDev, &rxHeader, RxData, FIFO_IDX_0) == HAL_OK )
-    {
-        /* 解析报文ID. */
-        uint16_t tpdo_id = rxHeader.StdId;
-        uint8_t Node_id = tpdo_id & 0x7F;
-
-        /* 查表. 检查该节点是否在驱动库有注册记录. */
-        int8_t index = motor_findSlotByNodeId(Node_id, MOTOR_STEER_TYPE);
-        uint8_t belong = MOTOR_STEER_TYPE;     // belong=1. 该节点来自转向电机表.
-        if ( index < 0 )
-        {
-            /* 不在转向电机设备表. 查直行电机设备表. */
-            index = motor_findSlotByNodeId(Node_id, MOTOR_TRAC_TYPE);
-            if ( index < 0 )
-            {
-                /* 不在两张表中. 未知设备. 不派发给处理逻辑. 返回. */
-                continue;
-            }
-
-            belong = MOTOR_TRAC_TYPE;   // belong-0. 该节点来自直行电机表.
-        }
-
-        /* 查到设备信息. 对报文进行分发处理. */
-        switch (belong)
-        {
-            case MOTOR_STEER_TYPE: motor_steerDispatch(tpdo_id, RxData, &StatusSteerArr[index]);  break;
-            case MOTOR_TRAC_TYPE:  motor_tracDispatch(tpdo_id, RxData, &StatusTracArr[index]);  break;
-
-            default:    break;
-        }
-    }
-}
-
-
-
-/* ——————————————————— Public API Steer —————————————————————————— */
 void Cus_Motor_Steer_Disable( uint8_t Node_id )
 {
+    int8_t index = motor_findSlotByNodeId(Node_id, MOTOR_STEER_TYPE);
+    if ( index < 0 )
+    {
+        /* 未找到设备. 返回. */
+        Cus_Motor_ErrorHook(Node_id, MOTOR_STEER_TYPE, MOTOR_ERR_NOT_FOUND);
+        return;
+    }
+
     /* 计算 COB_ID. */
     uint16_t cob_id = RPDO1_BASE + Node_id;
 
@@ -539,13 +651,20 @@ void Cus_Motor_Steer_Disable( uint8_t Node_id )
     if ( motor_waitStatusWord(Node_id, MOTOR_STEER_TYPE, 0x9070, 500) < 0 )
     {
         Cus_Motor_ErrorHook(Node_id, MOTOR_STEER_TYPE, MOTOR_ERR_STATUS_WORD);
-        return;
     }
 }
 
 
 void Cus_Motor_Steer_EmergencyStop( uint8_t Node_id )
 {
+    int8_t index = motor_findSlotByNodeId(Node_id, MOTOR_STEER_TYPE);
+    if ( index < 0 )
+    {
+        /* 未找到设备. 返回. */
+        Cus_Motor_ErrorHook(Node_id, MOTOR_STEER_TYPE, MOTOR_ERR_NOT_FOUND);
+        return;
+    }
+
     uint16_t cob_id = RPDO1_BASE + Node_id;
 
     uint8_t Buf[8] = { 0 };
@@ -556,7 +675,7 @@ void Cus_Motor_Steer_EmergencyStop( uint8_t Node_id )
 }
 
 
-void Cus_Motor_Steer_SetAngle( uint8_t Node_id, float angle_deg, uint32_t speed_rpm )
+void Cus_Motor_Steer_SetAngle( uint8_t Node_id, float angle_deg, uint32_t speed_rpm, uint8_t forceSync )
 {
     int8_t slots = motor_findSlotByNodeId(Node_id, MOTOR_STEER_TYPE);
     if ( slots < 0 )
@@ -566,7 +685,7 @@ void Cus_Motor_Steer_SetAngle( uint8_t Node_id, float angle_deg, uint32_t speed_
         return;
     }
 
-    if ( StatusSteerArr[slots].runingMode != STEER_POSI_MODE )
+    if ( StatusSteerArr[slots].runingMode != MOTOR_POSI_MODE )
     {
         /* 该API必须工作于绝对位置模式. 当前模式不匹配. 通知并返回. */
         Cus_Motor_ErrorHook(Node_id, MOTOR_STEER_TYPE, MOTOR_ERR_MODE_DISMATCH);
@@ -615,11 +734,338 @@ void Cus_Motor_Steer_SetAngle( uint8_t Node_id, float angle_deg, uint32_t speed_
     Buf[1] = 0x00;
     cob_id = RPDO1_BASE + Node_id;
     motor_canSend(cob_id, Buf, 8);      // 发送执行指令.
-    if ( motor_waitStatusWord(Node_id, MOTOR_STEER_TYPE, 0x9437, 5000) < 0 ) 
+
+    if ( forceSync )
     {
-        /* 没等到状态字？可能由于超时过短. 而当前轮子依然在移动. 通知上层但不修改设备任何状态. */
-        Cus_Motor_ErrorHook(Node_id, MOTOR_STEER_TYPE, MOTOR_ERR_STATUS_WORD);
+        if ( motor_waitStatusWord(Node_id, MOTOR_STEER_TYPE, 0x9437, 5000) < 0 ) 
+        {
+            /* 没等到状态字？可能由于超时过短. 而当前轮子依然在移动. 通知上层但不修改设备任何状态. */
+            Cus_Motor_ErrorHook(Node_id, MOTOR_STEER_TYPE, MOTOR_ERR_STATUS_WORD);
+        }
     }
+}
+
+
+uint8_t Cus_Motor_Steer_GetAngle( uint8_t Node_id, float *pAngle )
+{
+    /* 查表. 获取设备. */
+    int8_t index = motor_findSlotByNodeId(Node_id, MOTOR_STEER_TYPE);
+    if ( index < 0 )
+    {
+        /* 未找到设备. 返回. */
+        return 0;
+    }
+
+    /* 找到设备. 返回当前角度. */
+    *pAngle = StatusSteerArr[index].actual_AngleDeg;
+
+    return 1;
+}
+
+
+uint8_t Cus_Motor_Steer_IsTargetReached( uint8_t Node_id )
+{
+    /* 查表. 获取设备. */
+    int8_t index = motor_findSlotByNodeId(Node_id, MOTOR_STEER_TYPE);
+    if ( index < 0 )
+    {
+        return 0;
+    }
+
+    return (StatusSteerArr[index].is_TargetReach) ? 1 : 0;
+}
+
+
+uint8_t Cus_Motor_Steer_IsFault( uint8_t Node_id )
+{
+    /* 查表. 获取设备. */
+    int8_t index = motor_findSlotByNodeId(Node_id, MOTOR_STEER_TYPE);
+    if ( index < 0 )
+    {
+        return 0;
+    }
+
+    return (StatusSteerArr[index].is_Fault) ? 1 : 0;
+}
+
+
+uint16_t Cus_Motor_Steer_StatusWord( uint8_t Node_id )
+{
+    /* 查表. 获取设备. */
+    int8_t index = motor_findSlotByNodeId(Node_id, MOTOR_STEER_TYPE);
+    if ( index < 0 )
+    {
+        return 0;
+    }
+
+    return StatusSteerArr[index].statusWord;
+}
+
+
+uint8_t Cus_Motor_Steer_IsEnable( uint8_t Node_id )
+{
+    /* 查表. 获取设备. */
+    int8_t index = motor_findSlotByNodeId(Node_id, MOTOR_STEER_TYPE);
+    if ( index < 0 )
+    {
+        return 0;
+    }
+
+    return StatusSteerArr[index].is_Enable;
+}
+
+
+/* ——————————————————— Public API Trac —————————————————————————— */
+
+uint8_t Cus_Motor_Trac_VelocityMode_Initial( uint8_t Node_id )
+{
+    /* 检查该设备是否已在状态表中. */
+    int8_t index = motor_findSlotByNodeId(Node_id, MOTOR_TRAC_TYPE);
+    if ( index >= 0 )
+    {
+        /* 该设备已存在于状态表中. 检查该设备是否因为Error需要重新Initial. */
+        if ( StatusTracArr[index].is_Fault == 0 )
+        {
+            /* 无错误状态. 不允许重复初始化. */
+            return (uint8_t)index;
+        }
+        else 
+        { 
+            /* 发送清除报警信息. */
+            uint16_t cob_id = RPDO1_BASE + Node_id;
+            uint8_t Buf[8] = { 0 };
+            Buf[0] = 0x80;
+            Buf[1] = 0x00;      // 0x0080. 清除报警信息.
+
+            motor_canSend(cob_id, Buf, 8);
+
+            uint32_t startTick = HAL_GetTick();
+            while( (uint32_t)(HAL_GetTick() - startTick) < 500 )
+            {
+                /* 轮询ERROR标志.  */
+                if ( StatusTracArr[index].is_Fault == 0 )  break;
+                Cus_Motor_MainFunction();
+                HAL_Delay(1);
+            }
+            /* 等待超时. ERROR标志未被消去. 错误. */
+            if ( StatusTracArr[index].is_Fault )   goto ERROR;
+
+            /* ERROR标志被成功消去. 重走流程. */
+        }   
+    }
+    else 
+    {
+        /* 该设备不在列表中. 加入列表进行状态管理. */
+        index = motor_findFreeSlot(MOTOR_TRAC_TYPE);
+        if ( index < 0 )   
+        {
+            /* 状态表无更多空间分配. 返回. */ 
+            Cus_Motor_ErrorHook(Node_id, MOTOR_TRAC_TYPE, MOTOR_ERR_NO_SLOT);
+            return 0xFF;  
+        }  
+
+        StatusTracArr[index].nodeId = Node_id;
+        StatusTracArr[index].runingMode = MOTOR_UNKNOWN_MODE;
+        StatusTracArr[index].statusWord = 0;
+        DeviceMask &= ~((0x01 << MOTOR_MAX_SUPPORT_STEER) << index);     // 设置位图占用.
+    }
+
+    motor_NMT_start(Node_id);
+
+    if ( motor_waitStatusWord(Node_id, MOTOR_TRAC_TYPE, 0x0050, 500) < 0 )  goto ERROR;
+
+    /* 设置速度控制模式及上电使能. */
+    motor_modeSelect(Node_id, MOTOR_VEL_MODE);
+
+    uint16_t cob_id = RPDO1_BASE + Node_id;
+
+    uint8_t Buf[8] = { 0 };
+    Buf[0] = 0x06;
+    Buf[1] = 0x00;
+    motor_canSend(cob_id, Buf, 8);
+    if ( motor_waitStatusWord(Node_id, MOTOR_TRAC_TYPE, 0x0031, 500) < 0 )  goto ERROR;
+
+    Buf[0] = 0x07;
+    Buf[1] = 0x00;
+    motor_canSend(cob_id, Buf, 8);
+    if ( motor_waitStatusWord(Node_id, MOTOR_TRAC_TYPE, 0x0033, 500) < 0 )  goto ERROR;
+
+    Buf[0] = 0x0F;
+    Buf[1] = 0x00;
+    motor_canSend(cob_id, Buf, 8);
+    if ( motor_waitStatusWord(Node_id, MOTOR_TRAC_TYPE, 0x8037, 500) < 0 )  goto ERROR;
+
+    StatusTracArr[index].runingMode = MOTOR_VEL_MODE;
+    return 1;
+
+
+ERROR:
+    /* 状态字等待失败. 释放占用，通知钩子. */
+    StatusTracArr[index].nodeId = 0;
+    DeviceMask |= ((0x01 << MOTOR_MAX_SUPPORT_STEER) << index);      // 槽位归还.
+    StatusTracArr[index].runingMode = MOTOR_UNKNOWN_MODE;
+    Cus_Motor_ErrorHook(Node_id, MOTOR_TRAC_TYPE, MOTOR_ERR_STATUS_WORD);
+
+    return 0xFF;
+}
+
+
+void Cus_Motor_Trac_Disable( uint8_t Node_id )
+{
+    int8_t index = motor_findSlotByNodeId(Node_id, MOTOR_TRAC_TYPE);
+    if ( index < 0 )
+    {
+        /* 表中未找到设备. 上报返回. */
+        Cus_Motor_ErrorHook(Node_id, MOTOR_TRAC_TYPE, MOTOR_ERR_NOT_FOUND);
+        return;
+    }
+
+    uint16_t cob_id = RPDO1_BASE + Node_id;
+
+    uint8_t Buf[8] = { 0 };
+    Buf[0] = 0x05;
+    Buf[1] = 0x00;
+
+    motor_canSend(cob_id, Buf, 8);
+
+    if ( motor_waitStatusWord(Node_id, MOTOR_TRAC_TYPE, 0x8070, 500) < 0 )
+    {
+        /* 未等到状态字. 上报上层并返回. */
+        Cus_Motor_ErrorHook(Node_id, MOTOR_TRAC_TYPE, MOTOR_ERR_STATUS_WORD);
+    }
+}
+
+
+void Cus_Motor_Trac_EmergencyStop( uint8_t Node_id )
+{
+    int8_t index = motor_findSlotByNodeId(Node_id, MOTOR_TRAC_TYPE);
+    if ( index < 0 )
+    {
+        /* 表中未找到设备. 上报返回. */
+        Cus_Motor_ErrorHook(Node_id, MOTOR_TRAC_TYPE, MOTOR_ERR_NOT_FOUND);
+        return;
+    }
+
+    uint16_t cob_id = RPDO1_BASE + Node_id;
+
+    uint8_t Buf[8] = { 0 };
+    Buf[0] = 0x02;
+    Buf[1] = 0x00;
+
+    motor_canSend(cob_id, Buf, 8);
+}
+
+
+void Cus_Motor_Trac_SetVelocity( uint8_t Node_id, int32_t rpm, float current )
+{
+    /* 查表. */
+    int8_t index = motor_findSlotByNodeId(Node_id, MOTOR_TRAC_TYPE);
+    if ( index < 0 )
+    {
+        /* 表中未找到设备. 上报返回. */
+        Cus_Motor_ErrorHook(Node_id, MOTOR_TRAC_TYPE, MOTOR_ERR_NOT_FOUND);
+        return;
+    }
+
+    if ( StatusTracArr[index].runingMode != MOTOR_VEL_MODE )
+    {
+        /* 模式不匹配. 上报上层返回. */
+        Cus_Motor_ErrorHook(Node_id, MOTOR_TRAC_TYPE, MOTOR_ERR_MODE_DISMATCH);
+        return;
+    }
+
+    if ( rpm > MOTOR_TRAC_MAX_SPEED_RPM || rpm < -MOTOR_TRAC_MAX_SPEED_RPM )
+    {
+        /* 速度超限. 上报返回. */
+        Cus_Motor_ErrorHook(Node_id, MOTOR_TRAC_TYPE, MOTOR_ERR_PARAM_ILLEGAL);
+        return;
+    }
+
+    /* 取电流绝对值判断. */
+    if ( current < 0.0f )   current = -current;
+    if ( current > (float)(MOTOR_TRAC_MAX_CURRENT / 100.0f) )
+    {
+        /* 电流超限. 上报返回. */
+        Cus_Motor_ErrorHook(Node_id, MOTOR_TRAC_TYPE, MOTOR_ERR_PARAM_ILLEGAL);
+        return;
+    }
+
+    uint16_t cob_id = RPDO3_BASE + Node_id;
+    int32_t velocity_value = rpm * 10;
+
+    uint8_t Buf[8] = { 0 };
+    Buf[0] = velocity_value & 0xFF;
+    Buf[1] = (velocity_value >> 8) & 0xFF;
+    Buf[2] = (velocity_value >> 16) & 0xFF;
+    Buf[3] = (velocity_value >> 24) & 0xFF;
+
+    int16_t cur = (int16_t)(current * 100.0f);
+
+    Buf[4] = cur & 0xFF;
+    Buf[5] = (cur >> 8) & 0xFF;
+
+    motor_canSend(cob_id, Buf, 8);
+}
+
+
+int32_t Cus_Motor_Trac_GetVelocity( uint8_t Node_id )
+{
+    int8_t index = motor_findSlotByNodeId(Node_id, MOTOR_TRAC_TYPE);
+    if ( index < 0 )
+    {
+        return 0;
+    }
+
+    return (StatusTracArr[index].current_Rpm / 10);  // 0.1r/min.
+}
+
+
+int32_t Cus_Motor_Trac_GetDistanceCM( uint8_t Node_id )
+{
+    int8_t index = motor_findSlotByNodeId(Node_id, MOTOR_TRAC_TYPE);
+    if ( index < 0 )
+    {
+        return 0;
+    }
+
+    return (StatusTracArr[index].actual_DistanceMM / 10);
+}
+
+
+uint16_t Cus_Motor_Trac_StatusWord( uint8_t Node_id )
+{
+    int8_t index = motor_findSlotByNodeId(Node_id, MOTOR_TRAC_TYPE);
+    if ( index < 0 )
+    {
+        return 0;
+    }
+
+    return StatusTracArr[index].statusWord;
+}
+
+
+uint8_t Cus_Motor_Trac_IsFault( uint8_t Node_id )
+{
+    int8_t index = motor_findSlotByNodeId(Node_id, MOTOR_TRAC_TYPE);
+    if ( index < 0 )
+    {
+        return 0;
+    }
+
+    return StatusTracArr[index].is_Fault;
+}
+
+
+uint8_t Cus_Motor_Trac_IsEnable( uint8_t Node_id )
+{
+    int8_t index = motor_findSlotByNodeId(Node_id, MOTOR_TRAC_TYPE);
+    if ( index < 0 )
+    {
+        /* 未找到设备.  */
+        return 0;
+    }
+
+    return StatusTracArr[index].is_Enable;
 }
 
 
