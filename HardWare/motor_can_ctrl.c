@@ -27,6 +27,7 @@ static Cus_CAN_RxMsg_t BkpBuf[32];  // 备份缓冲区.
 
 /* 驱动设备的状态结构数组掩码. 1=该槽空闲. 0=该槽被占用(已被注册). 低4位为Steer占用指示. 高4位为Trac占用指示. */
 uint8_t DeviceMask = 0xFF;       
+extern void CAN_forceStart( void );
 /* —————————————————————————————————————————————————————— */
 
 
@@ -112,7 +113,7 @@ static void motor_NMT_start( uint8_t Node_id )
     Buf[0] = 0x01;
     Buf[1] = Node_id;
 
-    motor_canSend(NMT_id, Buf, 8);
+    motor_canSend(NMT_id, Buf, MOTOR_NMT_DLC);
 }
 
 
@@ -229,7 +230,7 @@ static void motor_modeSelect( uint8_t Node_id, uint8_t Mode )
     uint8_t txBuf[8] = { 0 };
     txBuf[0] = Mode;
 
-    motor_canSend(cob_id, txBuf, 8);
+    motor_canSend(cob_id, txBuf, MOTOR_RPDO2_DLC);
 }
 
 
@@ -459,6 +460,9 @@ void HX_CAN_Init( void )
     pFilter->Cus_CAN_FilterInit(pFilter, CAN1);
     pFilter->Self_Release(&pFilter);
 
+    /* bxCAN启动补丁. */
+    CAN_forceStart();
+
     /* 启动bxCAN外设. */
     Cus_CAN_Start(CAN1);
 
@@ -545,7 +549,7 @@ uint8_t Cus_Motor_Steer_PosMode_Initial( uint8_t Node_id )
             Buf[0] = 0x80;
             Buf[1] = 0x00;      // 0x0080. 清除报警信息.
 
-            motor_canSend(cob_id, Buf, 8);
+            motor_canSend(cob_id, Buf, MOTOR_RPDO1_DLC);
 
             uint32_t startTick = HAL_GetTick();
             while( (uint32_t)(HAL_GetTick() - startTick) < 500 )
@@ -592,22 +596,22 @@ uint8_t Cus_Motor_Steer_PosMode_Initial( uint8_t Node_id )
     uint8_t Buf[8] = { 0 };
     Buf[0] = 0x06;
     Buf[1] = 0x00;
-    motor_canSend(cob_id, Buf, 8);
+    motor_canSend(cob_id, Buf, MOTOR_RPDO1_DLC);
     if ( motor_waitStatusWord(Node_id, MOTOR_STEER_TYPE, 0x0031, 500) < 0 )  goto ERROR;
 
     Buf[0] = 0x07;
     Buf[1] = 0x00;
-    motor_canSend(cob_id, Buf, 8);
+    motor_canSend(cob_id, Buf, MOTOR_RPDO1_DLC);
     if ( motor_waitStatusWord(Node_id, MOTOR_STEER_TYPE, 0x0033, 500) < 0 )  goto ERROR;
 
     Buf[0] = 0x0F;
     Buf[1] = 0x00;
-    motor_canSend(cob_id, Buf, 8);
+    motor_canSend(cob_id, Buf, MOTOR_RPDO1_DLC);
     if ( motor_waitStatusWord(Node_id, MOTOR_STEER_TYPE, 0x0437, 500) < 0 )  goto ERROR;
 
     Buf[0] = 0x0F;
     Buf[1] = 0x80;
-    motor_canSend(cob_id, Buf, 8);
+    motor_canSend(cob_id, Buf, MOTOR_RPDO1_DLC);
     if ( motor_waitStatusWord(Node_id, MOTOR_STEER_TYPE, 0x0437, 500) < 0 )  goto ERROR;
 
     /* 等待回零完毕. */
@@ -645,7 +649,7 @@ void Cus_Motor_Steer_Disable( uint8_t Node_id )
     txBuf[0] = 0x05;
     txBuf[1] = 0x00;
 
-    motor_canSend(cob_id, txBuf, 8);
+    motor_canSend(cob_id, txBuf, MOTOR_RPDO1_DLC);
 
     /* 等待状态字. */
     if ( motor_waitStatusWord(Node_id, MOTOR_STEER_TYPE, 0x9070, 500) < 0 )
@@ -671,7 +675,7 @@ void Cus_Motor_Steer_EmergencyStop( uint8_t Node_id )
     Buf[0] = 0x02;
     Buf[1] = 0x00;
 
-    motor_canSend(cob_id, Buf, 8);
+    motor_canSend(cob_id, Buf, MOTOR_RPDO1_DLC);
 }
 
 
@@ -727,13 +731,13 @@ void Cus_Motor_Steer_SetAngle( uint8_t Node_id, float angle_deg, uint32_t speed_
     Buf[7] = (uint8_t)(speed_rpm >> 24);      
 
     /* 发送位置指令. */
-    motor_canSend(cob_id, Buf, 8);
+    motor_canSend(cob_id, Buf, MOTOR_RPDO4_DLC);
     memset(Buf, 0, sizeof(Buf));
 
     Buf[0] = 0x3F;
     Buf[1] = 0x00;
     cob_id = RPDO1_BASE + Node_id;
-    motor_canSend(cob_id, Buf, 8);      // 发送执行指令.
+    motor_canSend(cob_id, Buf, MOTOR_RPDO1_DLC);      // 发送执行指令.
 
     if ( forceSync )
     {
@@ -837,7 +841,7 @@ uint8_t Cus_Motor_Trac_VelocityMode_Initial( uint8_t Node_id )
             Buf[0] = 0x80;
             Buf[1] = 0x00;      // 0x0080. 清除报警信息.
 
-            motor_canSend(cob_id, Buf, 8);
+            motor_canSend(cob_id, Buf, MOTOR_RPDO1_DLC);
 
             uint32_t startTick = HAL_GetTick();
             while( (uint32_t)(HAL_GetTick() - startTick) < 500 )
@@ -882,17 +886,17 @@ uint8_t Cus_Motor_Trac_VelocityMode_Initial( uint8_t Node_id )
     uint8_t Buf[8] = { 0 };
     Buf[0] = 0x06;
     Buf[1] = 0x00;
-    motor_canSend(cob_id, Buf, 8);
+    motor_canSend(cob_id, Buf, MOTOR_RPDO1_DLC);
     if ( motor_waitStatusWord(Node_id, MOTOR_TRAC_TYPE, 0x0031, 500) < 0 )  goto ERROR;
 
     Buf[0] = 0x07;
     Buf[1] = 0x00;
-    motor_canSend(cob_id, Buf, 8);
+    motor_canSend(cob_id, Buf, MOTOR_RPDO1_DLC);
     if ( motor_waitStatusWord(Node_id, MOTOR_TRAC_TYPE, 0x0033, 500) < 0 )  goto ERROR;
 
     Buf[0] = 0x0F;
     Buf[1] = 0x00;
-    motor_canSend(cob_id, Buf, 8);
+    motor_canSend(cob_id, Buf, MOTOR_RPDO1_DLC);
     if ( motor_waitStatusWord(Node_id, MOTOR_TRAC_TYPE, 0x8037, 500) < 0 )  goto ERROR;
 
     StatusTracArr[index].runingMode = MOTOR_VEL_MODE;
@@ -926,7 +930,7 @@ void Cus_Motor_Trac_Disable( uint8_t Node_id )
     Buf[0] = 0x05;
     Buf[1] = 0x00;
 
-    motor_canSend(cob_id, Buf, 8);
+    motor_canSend(cob_id, Buf, MOTOR_RPDO1_DLC);
 
     if ( motor_waitStatusWord(Node_id, MOTOR_TRAC_TYPE, 0x8070, 500) < 0 )
     {
@@ -952,7 +956,7 @@ void Cus_Motor_Trac_EmergencyStop( uint8_t Node_id )
     Buf[0] = 0x02;
     Buf[1] = 0x00;
 
-    motor_canSend(cob_id, Buf, 8);
+    motor_canSend(cob_id, Buf, MOTOR_RPDO1_DLC);
 }
 
 
@@ -1004,7 +1008,7 @@ void Cus_Motor_Trac_SetVelocity( uint8_t Node_id, int32_t rpm, float current )
     Buf[4] = cur & 0xFF;
     Buf[5] = (cur >> 8) & 0xFF;
 
-    motor_canSend(cob_id, Buf, 8);
+    motor_canSend(cob_id, Buf, MOTOR_RPDO3_DLC);
 }
 
 

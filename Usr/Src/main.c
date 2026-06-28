@@ -13,6 +13,13 @@ tftDevice_HandleTypeDef lcd_device;
 /* --------------------------------------------------------------- */
 
 
+/* --------------------------------------------------------------- */
+static void motor_test( void );
+void CAN_Force_Start( void );
+void CAN_forceStart( void );
+/* --------------------------------------------------------------- */
+
+
 int main( void )
 {
   HAL_Init();
@@ -32,7 +39,7 @@ int main( void )
 
   while(1)
   {
-    
+
   }
 }
 
@@ -67,4 +74,63 @@ HAL_StatusTypeDef HAL_InitTick( uint32_t TickPriority )
   HAL_TIM_Base_Start_IT(&htim6);
   return HAL_OK;
 }
+
+
+void CAN_forceStart( void )
+{
+  // 先清除 WKUI
+  if ( CAN1->MSR & CAN_MSR_WKUI ) 
+  {
+    CAN1->MSR = CAN_MSR_WKUI;
+  }
+
+  // 确保不在睡眠模式
+  CAN1->MCR &= ~CAN_MCR_SLEEP;
+
+  // 请求退出初始化（清除 INRQ）
+  CAN1->MCR &= ~CAN_MCR_INRQ;
+
+  // 等待 INAK 清零，但给一个短超时（5000 次循环）
+  uint32_t timeout = 5000;
+  while ( (CAN1->MSR & CAN_MSR_INAK) && timeout ) 
+  {
+    timeout--;
+  }
+
+  // 如果超时了（INAK 仍为 1），发送一帧空数据来强制唤醒
+  if ( CAN1->MSR & CAN_MSR_INAK ) 
+  {
+    // 等待邮箱空闲
+    while ((CAN1->TSR & CAN_TSR_TME0) == 0);
+
+    // 发送一个“虚拟帧”（DLC=0，ID=0x7，不影响总线）
+    CAN1->sTxMailBox[0].TIR = (0x7 << 21) | CAN_TI0R_TXRQ;
+    CAN1->sTxMailBox[0].TDTR = 0;            // DLC=0，无数据
+    CAN1->sTxMailBox[0].TIR |= CAN_TI0R_TXRQ;
+
+    // 再次等待 INAK 清零（这次应该很快）
+    timeout = 1000;
+    while ((CAN1->MSR & CAN_MSR_INAK) && timeout) 
+    {
+      timeout--;
+    }
+  }
+}
+
+
+static void motor_test( void )
+{
+  /* 速度控制模式. */
+  Cus_Motor_Trac_VelocityMode_Initial(0x0A);
+
+  /* 绝对位置模式. (转向电机) */
+  Cus_Motor_Steer_PosMode_Initial(0x0B);
+
+  /* 设置节点0x0A. 速度1500rpm. 驱动电流2A. */
+  Cus_Motor_Trac_SetVelocity(0x0A, 1500, 2.0);
+
+  /* 设置节点0x0A. 转向速度400Rpm. 角度+75°. 异步. */
+  Cus_Motor_Steer_SetAngle(0x0B, 75.0, 400, 0);
+}
+
 

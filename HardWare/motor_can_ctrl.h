@@ -110,6 +110,13 @@ typedef struct
 
     #define MOTOR_TRAC_MAX_SPEED_RPM              (2000)           // 直行电机最大转速.
     #define MOTOR_TRAC_MAX_CURRENT                (500)            // 直行电机最大承载电流.(最大5A)
+
+    /* 各COB-ID类型帧长度. */
+    #define MOTOR_NMT_DLC                         (2)
+    #define MOTOR_RPDO1_DLC                       (2)
+    #define MOTOR_RPDO2_DLC                       (1)
+    #define MOTOR_RPDO3_DLC                       (6)
+    #define MOTOR_RPDO4_DLC                       (8)
 /* —————————————————————————————————————————————————————— */
 
 /* —————————————————————————————————————————————————————— */
