@@ -300,7 +300,7 @@ static HAL_StatusTypeDef cus_canInit( const CANInitConfig_t * pConf_Structure )
 
   gpio.Pin = pConf_Structure->CAN_gpio.CAN_GPIO_RX;
   gpio.Mode = GPIO_MODE_INPUT;
-  gpio.Pull = GPIO_NOPULL;
+  gpio.Pull = GPIO_PULLUP;
   #if defined(STM32F4xx) || defined(STM32ADVANCE)
     gpio.Alternate = pConf_Structure->CAN_gpio.Alternate;
   #endif // STM32F4xx
@@ -1805,6 +1805,7 @@ void Cus_CAN_RingRecvIT( Cus_CAN_Device_t *pDev, uint32_t FIFO )
       if ( hReturn != HAL_OK )
       {
         // 请求失败处理.(待实现)
+        Cus_CAN_EXIT_CRITICAL();
         return HAL_ERROR;
       }
     }

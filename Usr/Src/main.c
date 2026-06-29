@@ -7,13 +7,33 @@
 #include "agv_state.h"
 #include "wheel_manager.h"
 
-UART_HandleTypeDef huart1;  // 与角色1通信的串口
+UART_HandleTypeDef huart1;  // 与角色1通信的串口#include "mb.h"
+#include "Cus_ILI9341.h"
+#include "stm32f1xx_hal.h"
+#include "sys.h"
+#include "debug_uart.h"
+#include "Cus_ILI9341.h"
+#include "motor_can_ctrl.h"
+
 
 /* ------------------------- 时基分离 -------------------------- */
-TIM_HandleTypeDef htim6;
 HAL_StatusTypeDef HAL_InitTick( uint32_t TickPriority );
 tftDevice_HandleTypeDef lcd_device;
 /* --------------------------------------------------------------- */
+
+
+/* --------------------------------------------------------------- */
+static void motor_test( void );
+void CAN_Force_Start( void );
+void CAN_forceStart( void );
+/* --------------------------------------------------------------- */
+
+UART_HandleTypeDef huart1;
+TIM_HandleTypeDef htim6;
+TIM_HandleTypeDef htim7;
+extern UART_HandleTypeDef huart2;
+
+void SystemClock_Config(void);
 
 /* ---------- UART 中断回调 ---------- */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
@@ -70,67 +90,12 @@ int main( void )
   Cus_ILI9341_InitHandle(&lcd_device);
   lcd_device.displayInit(&lcd_device, ILI9341_ROTATION_0);
 
-
-
-  lcd_device.lcd_drawString(&lcd_device,10,10,"Waiting Cmd...",CUS_FONT_SIZE_12,CUS_COLOR_RED,CUS_COLOR_WHITE);
-  
-  SimulateFrame(0.5,0.0,0.0);
-  AGV_UpdateLastCmdTick();
-
-  uint32_t last_sec_tick = HAL_GetTick();
-  int seconds = 0;
-
-  while (1) 
+  while(1)
   {
-
-    /* ===== 1. 安全检测 ===== */
-        AGV_SafetyCheck();
-        /* ===== 2. 处理协议帧（若收到新帧） ===== */
-        if (Protocol_NewFrameReady()) 
-        {
-            AGV_Command_t cmd;
-            if (Protocol_ParseCommand(&cmd)) 
-            {
-                AGV_UpdateLastCmdTick();     // ★ 刷新指令时间戳
-                Kinematics_Inverse(&cmd);
-                // 这里可以顺便更新 LCD 运动学数据（阶段3的显示代码）
-            }
-        }
-        /* ===== 3. 每 1 秒更新一次 LCD 状态显示 ===== */
-        if (HAL_GetTick() - last_sec_tick >= 1000) 
-        {
-            last_sec_tick = HAL_GetTick();
-            seconds++;
-            // 获取当前状态
-            AGV_State_t st = AGV_GetState();
-            const char *state_str = "???";
-            uint16_t state_color = CUS_COLOR_WHITE;
-            switch (st) 
-            {
-                case AGV_STATE_IDLE:    state_str = "IDLE";    state_color = CUS_COLOR_RED;  break;
-                case AGV_STATE_RUNNING: state_str = "RUNNING"; state_color = CUS_COLOR_RED;  break;
-                case AGV_STATE_ESTOP:   state_str = "ESTOP !"; state_color = CUS_COLOR_RED;  break;
-                case AGV_STATE_ERROR:   state_str = "ERROR !"; state_color = CUS_COLOR_RED;  break;
-            }
-            // 显示状态
-            char buf[40];
-            snprintf(buf, sizeof(buf), "State: %s", state_str);
-            lcd_device.lcd_drawString(&lcd_device, 10, 30, buf,
-                                      CUS_FONT_SIZE_12, state_color, CUS_COLOR_BLACK);
-            // 显示计时（用于观察超时）
-            snprintf(buf, sizeof(buf), "Time: %d s", seconds);
-            lcd_device.lcd_drawString(&lcd_device, 10, 50, buf,
-                                      CUS_FONT_SIZE_12, CUS_COLOR_WHITE, CUS_COLOR_BLACK);
-            // 如果是 ESTOP，给出提示
-            if (st >= AGV_STATE_ESTOP) 
-            {
-                lcd_device.lcd_drawString(&lcd_device, 10, 90,
-                    "(No cmd > 500ms)", CUS_FONT_SIZE_16, CUS_COLOR_RED, CUS_COLOR_BLACK);
-            }
-        }
-        HAL_Delay(20);
+        
   }
 }
+
 
 HAL_StatusTypeDef HAL_InitTick( uint32_t TickPriority )
 {
@@ -162,4 +127,63 @@ HAL_StatusTypeDef HAL_InitTick( uint32_t TickPriority )
   HAL_TIM_Base_Start_IT(&htim6);
   return HAL_OK;
 }
+
+
+void CAN_forceStart( void )
+{
+  // 先清除 WKUI
+  if ( CAN1->MSR & CAN_MSR_WKUI ) 
+  {
+    CAN1->MSR = CAN_MSR_WKUI;
+  }
+
+  // 确保不在睡眠模式
+  CAN1->MCR &= ~CAN_MCR_SLEEP;
+
+  // 请求退出初始化（清除 INRQ）
+  CAN1->MCR &= ~CAN_MCR_INRQ;
+
+  // 等待 INAK 清零，但给一个短超时（5000 次循环）
+  uint32_t timeout = 5000;
+  while ( (CAN1->MSR & CAN_MSR_INAK) && timeout ) 
+  {
+    timeout--;
+  }
+
+  // 如果超时了（INAK 仍为 1），发送一帧空数据来强制唤醒
+  if ( CAN1->MSR & CAN_MSR_INAK ) 
+  {
+    // 等待邮箱空闲
+    while ((CAN1->TSR & CAN_TSR_TME0) == 0);
+
+    // 发送一个“虚拟帧”（DLC=0，ID=0x7，不影响总线）
+    CAN1->sTxMailBox[0].TIR = (0x7 << 21) | CAN_TI0R_TXRQ;
+    CAN1->sTxMailBox[0].TDTR = 0;            // DLC=0，无数据
+    CAN1->sTxMailBox[0].TIR |= CAN_TI0R_TXRQ;
+
+    // 再次等待 INAK 清零（这次应该很快）
+    timeout = 1000;
+    while ((CAN1->MSR & CAN_MSR_INAK) && timeout) 
+    {
+      timeout--;
+    }
+  }
+}
+
+
+static void motor_test( void )
+{
+  /* 速度控制模式. */
+  Cus_Motor_Trac_VelocityMode_Initial(0x0A);
+
+  /* 绝对位置模式. (转向电机) */
+  Cus_Motor_Steer_PosMode_Initial(0x0B);
+
+  /* 设置节点0x0A. 速度1500rpm. 驱动电流2A. */
+  Cus_Motor_Trac_SetVelocity(0x0A, 1500, 2.0);
+
+  /* 设置节点0x0A. 转向速度400Rpm. 角度+75°. 异步. */
+  Cus_Motor_Steer_SetAngle(0x0B, 75.0, 400, 0);
+}
+
 
