@@ -17,6 +17,7 @@
                 "c:\\Users\\wyyyz\\Documents\\GitHub\\AGV\\Driver\\FreeRTOS\\inc",
                 "c:\\Users\\wyyyz\\Documents\\GitHub\\AGV\\Driver\\FreeRTOS\\port",
                 "c:\\Users\\wyyyz\\Documents\\GitHub\\AGV\\Driver\\FreeRTOS",
+                "c:\\Users\\wyyyz\\Documents\\GitHub\\AGV\\modbus",
                 "c:\\Users\\wyyyz\\Documents\\GitHub\\AGV\\Driver\\HAL\\Src",
                 "c:\\Users\\wyyyz\\Documents\\GitHub\\AGV\\Usr\\Src",
                 "c:\\Users\\wyyyz\\Documents\\GitHub\\AGV\\Driver\\FreeRTOS\\src"
@@ -118,7 +119,8 @@
                 "c:\\Users\\wyyyz\\Documents\\GitHub\\AGV\\Driver\\FreeRTOS\\src",
                 "c:\\Users\\wyyyz\\Documents\\GitHub\\AGV\\Driver\\FreeRTOS\\inc",
                 "c:\\Users\\wyyyz\\Documents\\GitHub\\AGV\\Driver\\FreeRTOS\\port",
-                "c:\\Users\\wyyyz\\Documents\\GitHub\\AGV\\Driver\\FreeRTOS"
+                "c:\\Users\\wyyyz\\Documents\\GitHub\\AGV\\Driver\\FreeRTOS",
+                "c:\\Users\\wyyyz\\Documents\\GitHub\\AGV\\modbus"
             ],
             "defines": [
                 "USE_HAL_DRIVER",
