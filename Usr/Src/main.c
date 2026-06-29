@@ -7,7 +7,6 @@
 #include "agv_state.h"
 #include "wheel_manager.h"
 
-UART_HandleTypeDef huart1;  // 与角色1通信的串口#include "mb.h"
 #include "Cus_ILI9341.h"
 #include "stm32f1xx_hal.h"
 #include "sys.h"
@@ -17,6 +16,7 @@ UART_HandleTypeDef huart1;  // 与角色1通信的串口#include "mb.h"
 
 
 /* ------------------------- 时基分离 -------------------------- */
+UART_HandleTypeDef huart1;  // 与角色1通信的串口#include "mb.h"
 HAL_StatusTypeDef HAL_InitTick( uint32_t TickPriority );
 tftDevice_HandleTypeDef lcd_device;
 /* --------------------------------------------------------------- */
