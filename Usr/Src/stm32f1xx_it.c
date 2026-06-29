@@ -36,7 +36,8 @@
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
 extern TIM_HandleTypeDef htim6;
-
+extern TIM_HandleTypeDef htim7;
+extern void prvvTIMERExpiredISR(void);
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
 
@@ -168,8 +169,37 @@ void HAL_TIM_PeriodElapsedCallback( TIM_HandleTypeDef *htim )
   {
     HAL_IncTick();
   }
+	// 判断是TIM6溢出中断
+	if( htim->Instance == TIM7 )
+	{
+			// HAL内部自动清除更新中断标志，无需手动清位
+			prvvTIMERExpiredISR();
+	}
 }
 
+void TIM7_IRQHandler(void)
+{
+    HAL_TIM_IRQHandler(&htim7);
+}
+
+
+//// 接收中断回调，对接FreeModbus底层
+//void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+//{
+//    if(huart->Instance == USART1)
+//    {
+//        prvvUARTRxISR();
+//    }
+//}
+
+//// 发送完成中断回调，对接FreeModbus底层
+//void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
+//{
+//    if(huart->Instance == USART1)
+//    {
+//        prvvUARTTxReadyISR();
+//    }
+//}
 
 /******************************************************************************/
 /*                 STM32F1xx Peripherals Interrupt Handlers                   */

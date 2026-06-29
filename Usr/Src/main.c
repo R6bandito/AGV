@@ -1,4 +1,6 @@
 #include "main.h"
+#include "mb.h"
+#include "Cus_ILI9341.h"
 #include "stm32f1xx_hal.h"
 #include "sys.h"
 #include "debug_uart.h"
@@ -7,7 +9,6 @@
 
 
 /* ------------------------- 时基分离 ----------------------------- */
-TIM_HandleTypeDef htim6;
 HAL_StatusTypeDef HAL_InitTick( uint32_t TickPriority );
 tftDevice_HandleTypeDef lcd_device;
 /* --------------------------------------------------------------- */
@@ -18,6 +19,13 @@ static void motor_test( void );
 void CAN_Force_Start( void );
 void CAN_forceStart( void );
 /* --------------------------------------------------------------- */
+
+UART_HandleTypeDef huart1;
+TIM_HandleTypeDef htim6;
+TIM_HandleTypeDef htim7;
+extern UART_HandleTypeDef huart2;
+
+void SystemClock_Config(void);
 
 
 int main( void )
@@ -37,9 +45,15 @@ int main( void )
   /* CAN通信初始化. */
   HX_CAN_Init();
 
+	    // Modbus初始化：模式、从站地址、串口号、波特率、校验、停止位
+    eMBErrorCode eStatus = eMBInit(MB_RTU, 0x01, 2, 115200, MB_PAR_NONE, 1);
+    if(eStatus == MB_ENOERR)
+    {
+        eMBEnable();
+    }
   while(1)
   {
-
+        
   }
 }
 
