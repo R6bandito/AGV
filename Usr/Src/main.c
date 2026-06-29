@@ -9,7 +9,7 @@
 
 UART_HandleTypeDef huart1;  // 与角色1通信的串口
 
-/* ------------------------- 时基分离 ----------------------------- */
+/* ------------------------- 时基分离 -------------------------- */
 TIM_HandleTypeDef htim6;
 HAL_StatusTypeDef HAL_InitTick( uint32_t TickPriority );
 tftDevice_HandleTypeDef lcd_device;
