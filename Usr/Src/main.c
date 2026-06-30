@@ -45,12 +45,12 @@ int main( void )
   /* CAN通信初始化. */
   HX_CAN_Init();
 
-	    // Modbus初始化：模式、从站地址、串口号、波特率、校验、停止位
-    eMBErrorCode eStatus = eMBInit(MB_RTU, 0x01, 2, 115200, MB_PAR_NONE, 1);
-    if(eStatus == MB_ENOERR)
-    {
-        eMBEnable();
-    }
+    // Modbus初始化：模式、从站地址、串口号、波特率、校验、停止位
+  eMBErrorCode eStatus = eMBInit(MB_RTU, 0x01, 2, 115200, MB_PAR_NONE, 1);
+  if(eStatus == MB_ENOERR)
+  {
+      eMBEnable();
+  }
   while(1)
   {
         
