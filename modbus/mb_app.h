@@ -1,0 +1,2 @@
+#define REG_HOLDING_START 0
+#define REG_HOLDING_NREGS 10

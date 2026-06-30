@@ -1,10 +1,9 @@
 #include "mb.h"
+#include "mb_app.h"
 
 //保持寄存器变量
-#define REG_HOLDING_START 0
-#define REG_HOLDING_NREGS 100
 static USHORT usRegHoldingStart = REG_HOLDING_START;
-USHORT usRegHoldingBuf[REG_HOLDING_NREGS] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+SHORT usRegHoldingBuf[REG_HOLDING_NREGS] = {0};
 
 /**
  * Modbus slave holding register callback function.
