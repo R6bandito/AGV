@@ -30,8 +30,8 @@ void Kinematics_Init(float wb_x, float wb_y, float r)
     
 }
 
-//逆运动学解算：输入指令，计算出4个轮子的舵角和转速
 
+//逆运动学解算：输入指令，计算出4个轮子的舵角和转速
 bool Kinematics_Inverse(const AGV_Command_t *cmd)
 {
     if (cmd==NULL||!cmd->is_valid)//指令为空/无效，返回失败
@@ -88,6 +88,36 @@ bool Kinematics_Inverse(const AGV_Command_t *cmd)
     }
     return true;
     
+}
+
+bool Kinematics_UpdateFromModbus(void)
+{
+    // 检查急停标志
+    if (usRegHoldingBuf[MODBUS_REG_ESTOP] != 0) 
+    {
+        AGV_EmergencyStop();
+        agv.command.is_valid = false;
+        return false;
+    }
+
+    // 读取并缩放
+    float vx    = (int16_t)usRegHoldingBuf[MODBUS_REG_VX]    / MODBUS_SCALE;
+    float vy    = (int16_t)usRegHoldingBuf[MODBUS_REG_VY]    / MODBUS_SCALE;
+    float omega = (int16_t)usRegHoldingBuf[MODBUS_REG_OMEGA] / MODBUS_SCALE;
+
+    // 简单有效性检查（可根据需要加强）
+    if (isnan(vx) || isnan(vy) || isnan(omega)) 
+    {
+        agv.command.is_valid = false;
+        return false;
+    }
+
+    agv.command.vx      = vx;
+    agv.command.vy      = vy;
+    agv.command.omega   = omega;
+    agv.command.is_valid = true;
+
+    return Kinematics_Inverse(&agv.command);
 }
 
 

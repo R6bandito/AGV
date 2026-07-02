@@ -1,6 +1,9 @@
 #ifndef __AGV_STATE_H
 #define __AGV_STATE_H
 
+
+#define REAL_MODE  0   //  模拟状态 0 = 演示模式  1 = 真实硬件
+
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -18,5 +21,7 @@ AGV_State_t AGV_GetState(void);
 void AGV_EmergencyStop(void);
 
 void AGV_UpdateLastCmdTick(void);
+
+void AGV_ForceValidCmd(void);
 #endif
 

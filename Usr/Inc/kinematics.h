@@ -1,6 +1,8 @@
 #ifndef __KINEMATICS_H
 #define __KINEMATICS_H
 #include <stdint.h>
+#include "mb_app.h"
+#include "mb.h"
 
 // ----- ARMCC v5 C99 兼容 bool 定义 ----- 
 #ifndef __cplusplus
@@ -18,6 +20,17 @@
 #ifndef NULL
   #define NULL  (void *)0
 #endif
+
+
+#define MODBUS_SCALE           100.0f       // 缩放因子：整数/1000 = 实际值
+#define MODBUS_REG_VX          0
+#define MODBUS_REG_VY          1
+#define MODBUS_REG_OMEGA       2
+#define MODBUS_REG_ESTOP       3             // 0=正常, 1=急停
+
+extern USHORT usRegHoldingBuf[REG_HOLDING_NREGS];
+
+
 
 //单个舵轮的目标状态
 typedef struct 
@@ -37,10 +50,14 @@ typedef struct
     bool is_valid;   //指令否有效
 }AGV_Command_t;
 
+
+
 void Kinematics_Init(float wb_x, float wb_y, float r);
 bool Kinematics_Inverse(const AGV_Command_t *cmd);
-const WheelTarget_t*Kinematics_GetWheelTarget(uint8_t wheel_index);
-const AGV_Command_t*Kinematics_GetCurrentCommand(void);
 
+bool Kinematics_UpdateFromModbus(void);      
+
+const WheelTarget_t* Kinematics_GetWheelTarget(uint8_t wheel_index);
+const AGV_Command_t* Kinematics_GetCurrentCommand(void);
 #endif
 

@@ -184,9 +184,6 @@
             <hadXRAM>0</hadXRAM>
             <uocXRam>0</uocXRam>
             <RvdsVP>0</RvdsVP>
-            <RvdsMve>0</RvdsMve>
-            <RvdsCdeCp>0</RvdsCdeCp>
-            <nBranchProt>0</nBranchProt>
             <hadIRAM2>0</hadIRAM2>
             <hadIROM2>0</hadIROM2>
             <StupSel>8</StupSel>
@@ -1330,6 +1327,16 @@
           <GroupName>HardWare</GroupName>
           <Files>
             <File>
+              <FileName>motor_can_ctrl.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Usr\Src\motor_can_ctrl.c</FilePath>
+            </File>
+            <File>
+              <FileName>motor_can_ctrl.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Usr\Inc\motor_can_ctrl.h</FilePath>
+            </File>
+            <File>
               <FileName>CAN_Cus.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\HardWare\CAN_Cus.c</FilePath>
@@ -1374,6 +1381,31 @@
               <FileType>5</FileType>
               <FilePath>.\Usr\Inc\stm32f1xx_it.h</FilePath>
             </File>
+            <File>
+              <FileName>agv_state.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Usr\Inc\agv_state.h</FilePath>
+            </File>
+            <File>
+              <FileName>kinematics.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Usr\Inc\kinematics.h</FilePath>
+            </File>
+            <File>
+              <FileName>protocol.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Usr\Inc\protocol.h</FilePath>
+            </File>
+            <File>
+              <FileName>wheel_manager.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Usr\Inc\wheel_manager.h</FilePath>
+            </File>
+            <File>
+              <FileName>demo_mode.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Usr\Inc\demo_mode.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -1388,6 +1420,31 @@
               <FileName>stm32f1xx_it.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Usr\Src\stm32f1xx_it.c</FilePath>
+            </File>
+            <File>
+              <FileName>agv_state.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Usr\Src\agv_state.c</FilePath>
+            </File>
+            <File>
+              <FileName>kinematics.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Usr\Src\kinematics.c</FilePath>
+            </File>
+            <File>
+              <FileName>protocol.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Usr\Src\protocol.c</FilePath>
+            </File>
+            <File>
+              <FileName>wheel_manager.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Usr\Src\wheel_manager.c</FilePath>
+            </File>
+            <File>
+              <FileName>demo_mode.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Usr\Src\demo_mode.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -1727,7 +1784,7 @@
         <TargetCommonOption>
           <Device>STM32F103C8</Device>
           <Vendor>STMicroelectronics</Vendor>
-          <PackID>Keil.STM32F1xx_DFP.1.0.4</PackID>
+          <PackID>Keil.STM32F1xx_DFP.2.2.0</PackID>
           <PackURL>http://www.keil.com/pack/</PackURL>
           <Cpu>IRAM(0x20000000,0x5000) IROM(0x08000000,0x10000) CPUTYPE("Cortex-M3") CLOCK(12000000) ELITTLE</Cpu>
           <FlashUtilSpec></FlashUtilSpec>
@@ -1895,9 +1952,6 @@
             <hadXRAM>0</hadXRAM>
             <uocXRam>0</uocXRam>
             <RvdsVP>0</RvdsVP>
-            <RvdsMve>0</RvdsMve>
-            <RvdsCdeCp>0</RvdsCdeCp>
-            <nBranchProt>0</nBranchProt>
             <hadIRAM2>0</hadIRAM2>
             <hadIROM2>0</hadIROM2>
             <StupSel>8</StupSel>
@@ -3041,6 +3095,16 @@
           <GroupName>HardWare</GroupName>
           <Files>
             <File>
+              <FileName>motor_can_ctrl.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Usr\Src\motor_can_ctrl.c</FilePath>
+            </File>
+            <File>
+              <FileName>motor_can_ctrl.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Usr\Inc\motor_can_ctrl.h</FilePath>
+            </File>
+            <File>
               <FileName>CAN_Cus.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\HardWare\CAN_Cus.c</FilePath>
@@ -3085,6 +3149,31 @@
               <FileType>5</FileType>
               <FilePath>.\Usr\Inc\stm32f1xx_it.h</FilePath>
             </File>
+            <File>
+              <FileName>agv_state.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Usr\Inc\agv_state.h</FilePath>
+            </File>
+            <File>
+              <FileName>kinematics.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Usr\Inc\kinematics.h</FilePath>
+            </File>
+            <File>
+              <FileName>protocol.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Usr\Inc\protocol.h</FilePath>
+            </File>
+            <File>
+              <FileName>wheel_manager.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Usr\Inc\wheel_manager.h</FilePath>
+            </File>
+            <File>
+              <FileName>demo_mode.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Usr\Inc\demo_mode.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -3099,6 +3188,31 @@
               <FileName>stm32f1xx_it.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Usr\Src\stm32f1xx_it.c</FilePath>
+            </File>
+            <File>
+              <FileName>agv_state.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Usr\Src\agv_state.c</FilePath>
+            </File>
+            <File>
+              <FileName>kinematics.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Usr\Src\kinematics.c</FilePath>
+            </File>
+            <File>
+              <FileName>protocol.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Usr\Src\protocol.c</FilePath>
+            </File>
+            <File>
+              <FileName>wheel_manager.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Usr\Src\wheel_manager.c</FilePath>
+            </File>
+            <File>
+              <FileName>demo_mode.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Usr\Src\demo_mode.c</FilePath>
             </File>
           </Files>
         </Group>
