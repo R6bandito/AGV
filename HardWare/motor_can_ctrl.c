@@ -509,7 +509,7 @@ HX_CAN_Init( void )
     pInit->CAN_gpio     = s_gpio;
     pInit->baudrate     = CAN_BAUDRATE_500K;
     pInit->Instance     = CAN1;
-    pInit->Mode         = MODE_NORMAL;        // 暂时使用回环模式进行自测.
+    pInit->Mode         = MODE_LOOPBACK;        // 暂时使用回环模式进行自测.
     pInit->SJW          = Cus_CAN_SJW_1Tq;
 
     pInit->is_AutoBusOff            = false;
@@ -537,7 +537,7 @@ HX_CAN_Init( void )
     pFilter->Self_Release(&pFilter);
 
     /* bxCAN启动补丁. */
-    CAN_forceStart();
+    // CAN_forceStart();
 
     /* 启动bxCAN外设. */
     Cus_CAN_Start(CAN1);

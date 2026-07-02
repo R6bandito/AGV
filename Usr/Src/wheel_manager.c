@@ -30,9 +30,6 @@ void WheelManager_Init(void)
             wheel_actuals[i].last_update_tick = 0;
         }
 
-        /* 初始化 CAN 底层（全工程只需调用一次，可放在此处或 main.c） */
-        HX_CAN_Init();
-
         /* 初始化所有电机（注册并启动） */
         for (int i = 0; i < 4; i++) 
         {

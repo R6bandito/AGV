@@ -82,16 +82,16 @@ int main( void )
   // MX_USART1_UART_Init();
   Kinematics_Init(AGV_WHEELBASE_X, AGV_WHEELBASE_Y, AGV_WHEEL_RADIUS);
 
-  AGV_State_Init();
-  WheelManager_Init();
-
   HX_CAN_Init();
 
   /* LCD初始化. */
   Cus_ILI9341_InitHandle(&lcd_device);
   lcd_device.displayInit(&lcd_device, ILI9341_ROTATION_0);
 
-      // Modbus初始化：模式、从站地址、串口号、波特率、校验、停止位
+  AGV_State_Init();
+  WheelManager_Init();
+
+  // Modbus初始化：模式、从站地址、串口号、波特率、校验、停止位
   eMBErrorCode eStatus = eMBInit(MB_RTU, 0x01, 2, 115200, MB_PAR_NONE, 1);
   if(eStatus == MB_ENOERR)
     {

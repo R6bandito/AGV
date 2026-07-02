@@ -299,7 +299,7 @@ static HAL_StatusTypeDef cus_canInit( const CANInitConfig_t * pConf_Structure )
   HAL_GPIO_Init(port, &gpio);
 
   gpio.Pin = pConf_Structure->CAN_gpio.CAN_GPIO_RX;
-  gpio.Mode = GPIO_MODE_INPUT;
+  gpio.Mode = GPIO_MODE_AF_INPUT;
   gpio.Pull = GPIO_PULLUP;
   #if defined(STM32F4xx) || defined(STM32ADVANCE)
     gpio.Alternate = pConf_Structure->CAN_gpio.Alternate;
