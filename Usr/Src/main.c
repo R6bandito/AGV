@@ -1,14 +1,9 @@
 #include "main.h"
-#include "mb.h"
-#include "Cus_ILI9341.h"
 #include "stm32f1xx_hal.h"
-#include "sys.h"
-#include "debug_uart.h"
-#include "Cus_ILI9341.h"
-#include "motor_can_ctrl.h"
 
 
-/* ------------------------- 时基分离 ----------------------------- */
+/* ------------------------- 时基分离 -------------------------- */
+UART_HandleTypeDef huart1;  // 与角色1通信的串口#include "mb.h"
 HAL_StatusTypeDef HAL_InitTick( uint32_t TickPriority );
 tftDevice_HandleTypeDef lcd_device;
 /* --------------------------------------------------------------- */
@@ -28,6 +23,54 @@ extern UART_HandleTypeDef huart2;
 void SystemClock_Config(void);
 
 
+//---------- LCD 辅助：指定位置画浮点数 ---------- 
+static void LCD_DrawFloat(uint16_t x, uint16_t y, float val, uint16_t color, uint16_t bg)
+{
+    char buf[24];
+    sprintf(buf, "%.2f", (double)val);
+    lcd_device.lcd_drawString(&lcd_device, x, y, buf,CUS_FONT_SIZE_12, color, bg);
+}
+
+static void LCD_Clear(void)
+{
+    lcd_device.setWindow(&lcd_device, 0, 0, 240, 320);
+    lcd_device.lcd_fill(&lcd_device, CUS_COLOR_WHITE);
+}
+
+static void LCD_ShowNormal(const char *mode_str, const AGV_Command_t *cmd)
+{
+    lcd_device.lcd_drawString(&lcd_device, 10, 10, mode_str,
+                              CUS_FONT_SIZE_16, CUS_COLOR_WHITE, CUS_COLOR_BLACK);
+    if (cmd->is_valid)
+    {
+        lcd_device.lcd_drawString(&lcd_device, 10, 40, "Vx=", CUS_FONT_SIZE_16, CUS_COLOR_WHITE, CUS_COLOR_BLACK);
+        LCD_DrawFloat(40, 40, cmd->vx, CUS_COLOR_WHITE, CUS_COLOR_BLACK);
+        lcd_device.lcd_drawString(&lcd_device, 90, 40, "Vy=", CUS_FONT_SIZE_16, CUS_COLOR_WHITE, CUS_COLOR_BLACK);
+        LCD_DrawFloat(120, 40, cmd->vy, CUS_COLOR_WHITE, CUS_COLOR_BLACK);
+        lcd_device.lcd_drawString(&lcd_device, 170, 40, "W=", CUS_FONT_SIZE_16, CUS_COLOR_WHITE, CUS_COLOR_BLACK);
+        LCD_DrawFloat(200, 40, cmd->omega, CUS_COLOR_WHITE, CUS_COLOR_BLACK);
+    }
+    const char* wheel_name[] = {"FL","FR","RL","RR"};
+    for (int i = 0; i < 4; i++)
+    {
+        const WheelTarget_t *wt = Kinematics_GetWheelTarget(i);
+        if (wt)
+        {
+            uint16_t y = 100 + i * 35;
+            lcd_device.lcd_drawString(&lcd_device, 10, y, wheel_name[i],
+                                      CUS_FONT_SIZE_16, CUS_COLOR_WHITE, CUS_COLOR_BLACK);
+            lcd_device.lcd_drawString(&lcd_device, 45, y, "ang:",
+                                      CUS_FONT_SIZE_16, CUS_COLOR_WHITE, CUS_COLOR_BLACK);
+            LCD_DrawFloat(85, y, wt->steering_angle_deg, CUS_COLOR_WHITE, CUS_COLOR_BLACK);
+            lcd_device.lcd_drawString(&lcd_device, 140, y, "rpm:",
+                                      CUS_FONT_SIZE_16, CUS_COLOR_WHITE, CUS_COLOR_BLACK);
+            LCD_DrawFloat(180, y, wt->wheel_rpm, CUS_COLOR_WHITE, CUS_COLOR_BLACK);
+        }
+    }
+}
+
+DemoMode_t demo_mode = DEMO_MODE_MODBUS;   // 当前演示模式，可手动修改
+
 int main( void )
 {
   HAL_Init();
@@ -36,25 +79,57 @@ int main( void )
 
   debug_uart_Init();
   
-  printf("New Project Test OK! \n\n");
+  // MX_USART1_UART_Init();
+  Kinematics_Init(AGV_WHEELBASE_X, AGV_WHEELBASE_Y, AGV_WHEEL_RADIUS);
+
+  AGV_State_Init();
+  WheelManager_Init();
+
+  HX_CAN_Init();
 
   /* LCD初始化. */
   Cus_ILI9341_InitHandle(&lcd_device);
   lcd_device.displayInit(&lcd_device, ILI9341_ROTATION_0);
 
-  /* CAN通信初始化. */
-  HX_CAN_Init();
-
-    // Modbus初始化：模式、从站地址、串口号、波特率、校验、停止位
+      // Modbus初始化：模式、从站地址、串口号、波特率、校验、停止位
   eMBErrorCode eStatus = eMBInit(MB_RTU, 0x01, 2, 115200, MB_PAR_NONE, 1);
   if(eStatus == MB_ENOERR)
-  {
-      eMBEnable();
-  }
+    {
+        eMBEnable();
+    }
+
   while(1)
   {
-        eMBPoll();
-  }
+    eMBPoll();   // Modbus 协议栈轮询（两种模式均需要）
+
+            /* ---------- 急停检测 ---------- */
+            if (usRegHoldingBuf[MODBUS_REG_ESTOP] != 0)
+            {
+                AGV_EmergencyStop();
+                LCD_Clear();
+                
+            }
+            else
+            {
+                /* 1. 从 Modbus 读取指令并解算 */
+                Kinematics_UpdateFromModbus();
+                /* 2. 刷新指令时间戳 + 安全检查 */
+                AGV_ForceValidCmd();
+                AGV_SafetyCheck();
+                
+                /* 3. 真实模式：将解算结果通过 CAN 发送给电机 */
+                 WheelManager_SendAllTargets();
+
+                /* 4. LCD 显示（统一接口） */
+                const AGV_Command_t *cmd = Kinematics_GetCurrentCommand();
+                #if !REAL_MODE
+                    LCD_ShowNormal("Mode: SIMULATE", cmd);
+                #else
+                    LCD_ShowNormal("Mode: REAL", cmd);
+                #endif
+            }
+            HAL_Delay(50);
+    }
 }
 
 

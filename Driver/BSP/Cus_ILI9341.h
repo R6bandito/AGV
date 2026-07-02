@@ -8,9 +8,9 @@
 /* **************** Font Conf **************** */
   /* 以下宏用于决定是否启用对应字体. */
   #define ILI9341_FONT_12                 (1)           // 默认字体保持开启.(不建议关闭该字体)
-  #define ILI9341_FONT_16                 (0)
-  #define ILI9341_FONT_24                 (0)
-  #define ILI9341_FONT_32                 (0)
+  #define ILI9341_FONT_16                 (1)
+  #define ILI9341_FONT_24                 (1)
+  #define ILI9341_FONT_32                 (1)
 /* **************** Font Conf **************** */
 
 /* **************** Resolution Conf **************** */
